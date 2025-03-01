@@ -55,8 +55,15 @@ async function run() {
       console.log(user);
     });
 
+    // get all users
+    app.get("/get/all-users", async (req, res) => {
+      const result = await usersCollection.find().toArray();
+      res.send(result);
+    });
+
+    // check specific user that he/she admin or not::::: by email
+    // todo: need to verify token and verify admin
     app.get("/user/admin/:email", async (req, res) => {
-     
       const email = req.params.email;
       // console.log(email);
       // if (email !== req.decoded.email) {
