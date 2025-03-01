@@ -36,6 +36,14 @@ async function run() {
 
     // all the db connection
     const usersCollection = client.db("AssesslyDB").collection("users");
+    const examsCollection = client.db("AssesslyDB").collection("exams");
+
+    // create exam
+    app.post("/create/exam", async (req, res) => {
+      const examInfo = req.body;
+      const result = await examsCollection.insertOne(examInfo);
+      res.send(result);
+    });
 
     //   create user #public:open to all
     app.post("/create-user", async (req, res) => {
