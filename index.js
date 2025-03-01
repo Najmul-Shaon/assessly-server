@@ -54,6 +54,23 @@ async function run() {
       res.send(result);
       console.log(user);
     });
+
+    app.get("/user/admin/:email", async (req, res) => {
+     
+      const email = req.params.email;
+      // console.log(email);
+      // if (email !== req.decoded.email) {
+      //   return res.status(403).send({ message: "forbidden access" });
+      // }
+
+      const query = { userEmail: email };
+      const user = await usersCollection.findOne(query);
+      let isAdmin = false;
+      if (user) {
+        isAdmin = user?.userRole === "admin";
+      }
+      res.send({ isAdmin });
+    });
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
