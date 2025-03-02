@@ -37,11 +37,32 @@ async function run() {
     // all the db connection
     const usersCollection = client.db("AssesslyDB").collection("users");
     const examsCollection = client.db("AssesslyDB").collection("exams");
+    const counterCollection = client.db("AssesslyDB").collection("counter");
 
     // create exam
     app.post("/create/exam", async (req, res) => {
-      const examInfo = req.body;
+      const examInfo = {...req.body};
+
+      const counterDoc = await counterCollection.findOne({
+        id: "taskIdCounter",
+      });
+
+      const newId = counterDoc.lastId + 1;
+
+      await counterCollection.updateOne(
+        { id: "taskIdCounter" },
+        { $set: { lastId: newId } }
+      );
+
+       examInfo.examId = newId;
+
       const result = await examsCollection.insertOne(examInfo);
+      res.send(result);
+    });
+
+    // get all exam to show dashboard
+    app.get("/get/all-exams", async (req, res) => {
+      const result = await examsCollection.find().toArray();
       res.send(result);
     });
 
