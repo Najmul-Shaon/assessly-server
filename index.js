@@ -41,7 +41,7 @@ async function run() {
 
     // create exam
     app.post("/create/exam", async (req, res) => {
-      const examInfo = {...req.body};
+      const examInfo = { ...req.body };
 
       const counterDoc = await counterCollection.findOne({
         id: "taskIdCounter",
@@ -54,7 +54,7 @@ async function run() {
         { $set: { lastId: newId } }
       );
 
-       examInfo.examId = newId;
+      examInfo.examId = newId;
 
       const result = await examsCollection.insertOne(examInfo);
       res.send(result);
@@ -63,6 +63,15 @@ async function run() {
     // get all exam to show dashboard
     app.get("/get/all-exams", async (req, res) => {
       const result = await examsCollection.find().toArray();
+      res.send(result);
+    });
+
+    // get individual exam by exam id
+    app.get("/get/exam/:id", async (req, res) => {
+      const examId = req.params.id;
+      const numExamId = parseInt(examId);
+      const query = { examId: numExamId };
+      const result = await examsCollection.findOne(query);
       res.send(result);
     });
 
