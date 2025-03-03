@@ -38,6 +38,30 @@ async function run() {
     const usersCollection = client.db("AssesslyDB").collection("users");
     const examsCollection = client.db("AssesslyDB").collection("exams");
     const counterCollection = client.db("AssesslyDB").collection("counter");
+    const blogsCollection = client.db("AssesslyDB").collection("blogs");
+
+    // create  blog
+    app.post("/create/blog", async (req, res) => {
+      const blogInfo = { ...req.body };
+      const counterDoc = await counterCollection.findOne({
+        id: "taskIdCounter",
+      });
+      const newId = counterDoc.lastBlogId + 1;
+      await counterCollection.updateOne(
+        {
+          id: "taskIdCounter",
+        },
+        {
+          $set: { lastBlogId: newId },
+        }
+      );
+
+      blogInfo.blogId = newId;
+
+      const result = await blogsCollection.insertOne(blogInfo);
+
+      res.send(result);
+    });
 
     // create exam
     app.post("/create/exam", async (req, res) => {
@@ -47,11 +71,11 @@ async function run() {
         id: "taskIdCounter",
       });
 
-      const newId = counterDoc.lastId + 1;
+      const newId = counterDoc.lastExamId + 1;
 
       await counterCollection.updateOne(
         { id: "taskIdCounter" },
-        { $set: { lastId: newId } }
+        { $set: { lastExamId: newId } }
       );
 
       examInfo.examId = newId;
