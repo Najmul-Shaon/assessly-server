@@ -63,6 +63,12 @@ async function run() {
       res.send(result);
     });
 
+    // get all blogs
+    app.get("/get/blogs", async (req, res) => {
+      const result = await blogsCollection.find().toArray();
+      res.send(result);
+    });
+
     // create exam
     app.post("/create/exam", async (req, res) => {
       const examInfo = { ...req.body };
