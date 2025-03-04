@@ -65,7 +65,23 @@ async function run() {
 
     // get all blogs
     app.get("/get/blogs", async (req, res) => {
-      const result = await blogsCollection.find().toArray();
+      const { limit } = req.query;
+      if (limit === "all") {
+        const result = await blogsCollection.find().toArray();
+        res.send(result);
+      }
+      if (limit === "8") {
+        const result = await blogsCollection.find().limit(8).toArray();
+        res.send(result);
+      }
+    });
+
+    // get individual blog by blog id
+    app.get("/get/blog/:id", async (req, res) => {
+      const blogId = req.params.id;
+      const numBlogId = parseInt(blogId);
+      const query = { blogId: numBlogId };
+      const result = await blogsCollection.findOne(query);
       res.send(result);
     });
 
@@ -92,8 +108,21 @@ async function run() {
 
     // get all exam to show dashboard
     app.get("/get/all-exams", async (req, res) => {
-      const result = await examsCollection.find().toArray();
-      res.send(result);
+      const { type } = req.query;
+      if (type === "single") {
+        const query = { examType: type };
+        const result = await examsCollection.find(query).toArray();
+        res.send(result);
+      }
+      if (type === "limit") {
+        const query = { examType: "single" };
+        const result = await examsCollection.find(query).limit(8).toArray();
+        res.send(result);
+      }
+      if (type === "all") {
+        const result = await examsCollection.find().toArray();
+        res.send(result);
+      }
     });
 
     // get individual exam by exam id
