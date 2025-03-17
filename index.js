@@ -8,7 +8,16 @@ const cors = require("cors");
 const port = process.env.PORT || 5000;
 
 // middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "https://assey-9d4a0.firebaseapp.com",
+      "https://assey-9d4a0.web.app",
+    ],
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 // db connections
@@ -174,6 +183,24 @@ async function run() {
         isAdmin = user?.userRole === "admin";
       }
       res.send({ isAdmin });
+    });
+    
+    // check specific user that he/she admin or not::::: by email
+    // todo: need to verify token and verify admin
+    app.get("/user/regular/:email", async (req, res) => {
+      const email = req.params.email;
+      // console.log(email);
+      // if (email !== req.decoded.email) {
+      //   return res.status(403).send({ message: "forbidden access" });
+      // }
+
+      const query = { userEmail: email };
+      const user = await usersCollection.findOne(query);
+      let isUser = false;
+      if (user) {
+        isUser = user?.userRole === "user";
+      }
+      res.send({ isUser });
     });
   } finally {
     // Ensures that the client will close when you finish/error
