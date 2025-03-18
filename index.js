@@ -48,6 +48,7 @@ async function run() {
     const examsCollection = client.db("AssesslyDB").collection("exams");
     const counterCollection = client.db("AssesslyDB").collection("counter");
     const blogsCollection = client.db("AssesslyDB").collection("blogs");
+    const courseCollection = client.db("AssesslyDB").collection("courses");
 
     // create  blog
     app.post("/create/blog", async (req, res) => {
@@ -143,6 +144,43 @@ async function run() {
       res.send(result);
     });
 
+    // create course
+    app.post("/create-course", async (req, res) => {
+      const courseInfo = { ...req.body };
+      const counterDoc = await counterCollection.findOne({
+        id: "taskIdCounter",
+      });
+
+      const newId = counterDoc.lastCourseId + 1;
+      await counterCollection.updateOne(
+        { id: "taskIdCounter" },
+        {
+          $set: {
+            lastCourseId: newId,
+          },
+        }
+      );
+
+      courseInfo.courseId = newId;
+
+      const result = await courseCollection.insertOne(courseInfo);
+      res.send(result);
+    });
+
+    // get all courses
+    app.get("/get-all-courses", async (req, res) => {
+      const { type } = req.query;
+      console.log(type);
+      if (type === "all") {
+        const result = await courseCollection.find().toArray();
+        res.send(result);
+      }
+      if (type === "limit") {
+        const result = await courseCollection.find().limit(8).toArray();
+        res.send(result);
+      }
+    });
+
     //   create user #public:open to all
     app.post("/create-user", async (req, res) => {
       const user = req.body;
@@ -184,7 +222,7 @@ async function run() {
       }
       res.send({ isAdmin });
     });
-    
+
     // check specific user that he/she admin or not::::: by email
     // todo: need to verify token and verify admin
     app.get("/user/regular/:email", async (req, res) => {
