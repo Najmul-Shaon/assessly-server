@@ -1,9 +1,14 @@
 require("dotenv").config();
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const SSLCommerzPayment = require("sslcommerz-lts");
 const express = require("express");
 const app = express();
 
 const cors = require("cors");
+
+const store_id = process.env.STORE_ID;
+const store_passwd = process.env.STORE_PASSWORD;
+const is_live = false; //true for live, false for sandbox
 
 const port = process.env.PORT || 5000;
 
@@ -49,6 +54,7 @@ async function run() {
     const counterCollection = client.db("AssesslyDB").collection("counter");
     const blogsCollection = client.db("AssesslyDB").collection("blogs");
     const courseCollection = client.db("AssesslyDB").collection("courses");
+    const paymentsCollection = client.db("AssesslyDB").collection("payments");
 
     // create  blog
     app.post("/create/blog", async (req, res) => {
@@ -170,7 +176,7 @@ async function run() {
     // get all courses
     app.get("/get-all-courses", async (req, res) => {
       const { type } = req.query;
-      console.log(type);
+
       if (type === "all") {
         const result = await courseCollection.find().toArray();
         res.send(result);
@@ -180,6 +186,107 @@ async function run() {
         res.send(result);
       }
     });
+
+    // payment area start
+
+    app.post("/payment", async (req, res) => {
+      const examId = req.body.examId;
+      const examInfo = await examsCollection.findOne({
+        examId: parseInt(req.body.examId),
+      });
+
+      const purchaseInfo = req.body;
+      // console.log(examInfo?.fee);
+      const examFee = examInfo?.fee;
+      const trxId = new ObjectId().toString();
+
+      const counterDoc = await counterCollection.findOne({
+        id: "taskIdCounter",
+      });
+
+      const newId = counterDoc.lastPaymentId + 1;
+      await counterCollection.updateOne(
+        { id: "taskIdCounter" },
+        {
+          $set: {
+            lastPaymentId: newId,
+          },
+        }
+      );
+
+      purchaseInfo.paymentId = newId;
+      purchaseInfo.amount = examFee;
+      purchaseInfo.trxId = trxId;
+
+      // console.log(trxId);
+      const data = {
+        total_amount: examFee,
+        currency: "BDT",
+        tran_id: trxId,
+        success_url: `http://localhost:5000/payment/success/${trxId}`,
+        fail_url: "http://localhost:3030/fail",
+        cancel_url: "http://localhost:3030/cancel",
+        ipn_url: "http://localhost:3030/ipn",
+        shipping_method: "Courier",
+        product_name: "Computer.",
+        product_category: purchaseInfo?.type,
+        product_profile: "general",
+        cus_name: purchaseInfo?.userName,
+        cus_email: purchaseInfo?.userEmail,
+        cus_add1: "Dhaka",
+        cus_add2: "Dhaka",
+        cus_city: "Dhaka",
+        cus_state: "Dhaka",
+        cus_postcode: "1000",
+        cus_country: "Bangladesh",
+        cus_phone: "01711111111",
+        cus_fax: "01711111111",
+        ship_name: "Customer Name",
+        ship_add1: "Dhaka",
+        ship_add2: "Dhaka",
+        ship_city: "Dhaka",
+        ship_state: "Dhaka",
+        ship_postcode: 1000,
+        ship_country: "Bangladesh",
+      };
+      // console.log(data);
+      const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
+      sslcz.init(data).then((apiResponse) => {
+        // Redirect the user to payment gateway
+        let GatewayPageURL = apiResponse.GatewayPageURL;
+        res.send({ url: GatewayPageURL });
+        // console.log("Redirecting to: ", GatewayPageURL);
+
+        const finalPayment = {
+          purchaseInfo,
+          status: "pending",
+        };
+        const result = paymentsCollection.insertOne(finalPayment);
+      });
+
+      app.post("/payment/success/:trxId", async (req, res) => {
+        // console.log(req.params.trxId, examId);
+
+        const { trxId } = req.params;
+
+        const result = await paymentsCollection.updateOne(
+          {
+            "purchaseInfo.trxId": trxId,
+          },
+          {
+            $set: {
+              status: "paid",
+            },
+          }
+        );
+        // console.log(result);
+        if (result.modifiedCount > 0) {
+          res.redirect(`http://localhost:5173/payment/success/${examId}`);
+        }
+      });
+    });
+
+    // payment area end
 
     //   create user #public:open to all
     app.post("/create-user", async (req, res) => {
