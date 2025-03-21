@@ -187,16 +187,25 @@ async function run() {
       }
     });
 
+    // get individual course by exam id
+    app.get("/get/course/:id", async (req, res) => {
+      const courseId = req.params.id;
+      const numCourseId = parseInt(courseId);
+      const query = { courseId: numCourseId };
+      const result = await courseCollection.findOne(query);
+      res.send(result);
+    });
+
     // payment area start
 
     app.post("/payment", async (req, res) => {
       const examId = req.body.examId;
       const examInfo = await examsCollection.findOne({
-        examId: parseInt(req.body.examId),
+        examId: parseInt(examId),
       });
 
       const purchaseInfo = req.body;
-      // console.log(examInfo?.fee);
+      console.log(examInfo?.fee);
       const examFee = examInfo?.fee;
       const trxId = new ObjectId().toString();
 
@@ -224,7 +233,7 @@ async function run() {
         currency: "BDT",
         tran_id: trxId,
         success_url: `http://localhost:5000/payment/success/${trxId}`,
-        fail_url: "http://localhost:3030/fail",
+        fail_url: `http://localhost:5000/payment/fail/${trxId}`,
         cancel_url: "http://localhost:3030/cancel",
         ipn_url: "http://localhost:3030/ipn",
         shipping_method: "Courier",
@@ -281,7 +290,23 @@ async function run() {
         );
         // console.log(result);
         if (result.modifiedCount > 0) {
-          res.redirect(`http://localhost:5173/payment/success/${examId}`);
+          res.redirect(`http://localhost:5173/payment/success/${trxId}`);
+        }
+      });
+      app.post("/payment/fail/:trxId", async (req, res) => {
+        const { trxId } = req.params;
+        const result = await paymentsCollection.updateOne(
+          {
+            "purchaseInfo.trxId": trxId,
+          },
+          {
+            $set: {
+              status: "cancel",
+            },
+          }
+        );
+        if (result.modifiedCount > 0) {
+          res.redirect(`http://localhost:5173/payment/failed/${trxId}`);
         }
       });
     });
