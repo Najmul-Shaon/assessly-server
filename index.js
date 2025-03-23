@@ -245,14 +245,25 @@ async function run() {
     // payment area start
 
     app.post("/payment", async (req, res) => {
-      const examId = req.body.examId;
-      const examInfo = await examsCollection.findOne({
-        examId: parseInt(examId),
-      });
+      const { id, type } = req.body;
+      console.log("id", id, "type", type);
+      let examInfo, courseInfo;
+      if (type === "exam") {
+        examInfo = await examsCollection.findOne({
+          examId: Number(id),
+        });
+        // return examInfo;
+      }
+      if (type === "course") {
+        courseInfo = await courseCollection.findOne({
+          courseId: Number(id),
+        });
+        // return courseInfo;
+      }
 
       const purchaseInfo = req.body;
-      console.log(examInfo?.fee);
-      const examFee = examInfo?.fee;
+
+      const fee = examInfo?.fee || courseInfo?.fee;
       const trxId = new ObjectId().toString();
 
       const counterDoc = await counterCollection.findOne({
@@ -270,12 +281,12 @@ async function run() {
       );
 
       purchaseInfo.paymentId = newId;
-      purchaseInfo.amount = examFee;
+      purchaseInfo.amount = fee;
       purchaseInfo.trxId = trxId;
 
       console.log(purchaseInfo);
       const data = {
-        total_amount: examFee,
+        total_amount: fee,
         currency: "BDT",
         tran_id: trxId,
         // success_url: `http://localhost:5000/payment/success/${trxId}`,
