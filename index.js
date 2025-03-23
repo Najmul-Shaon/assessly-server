@@ -150,6 +150,52 @@ async function run() {
       res.send(result);
     });
 
+    // get exams for specific user
+    app.get("/get/exams/:email", async (req, res) => {
+      const { email } = req.params;
+      // const result = await paymentsCollection.find(query).toArray();
+      const result = await paymentsCollection
+        .aggregate([
+          {
+            $match: {
+              userEmail: email,
+              status: "paid",
+              type: "exam",
+            },
+          },
+          {
+            $addFields: {
+              examIdNum: { $toLong: "$examId" },
+            },
+          },
+          {
+            $lookup: {
+              from: "exams",
+              localField: "examIdNum",
+              foreignField: "examId",
+              as: "examDetails",
+            },
+          },
+          {
+            $unwind: "$examDetails",
+          },
+          {
+            $project: {
+              trxId: "$trxId",
+              examId: "$examDetails.examId",
+              examTitle: "$examDetails.examTitle",
+              examTopic: "$examDetails.examTopic",
+              examType: "$examDetails.examType",
+              examFee: "$examDetails.fee",
+              examMarks: "$examDetails.totalMarks",
+              paymentAt: "$paymentAt",
+            },
+          },
+        ])
+        .toArray();
+      res.send(result);
+    });
+
     // create course
     app.post("/create-course", async (req, res) => {
       const courseInfo = { ...req.body };
@@ -227,14 +273,17 @@ async function run() {
       purchaseInfo.amount = examFee;
       purchaseInfo.trxId = trxId;
 
-      // console.log(trxId);
+      console.log(purchaseInfo);
       const data = {
         total_amount: examFee,
         currency: "BDT",
         tran_id: trxId,
-        success_url: `http://localhost:5000/payment/success/${trxId}`,
-        fail_url: `http://localhost:5000/payment/fail/${trxId}`,
-        cancel_url: "http://localhost:3030/cancel",
+        // success_url: `http://localhost:5000/payment/success/${trxId}`,
+        success_url: `https://assessly-server.vercel.app/payment/success/${trxId}`,
+        // fail_url: `http://localhost:5000/payment/fail/${trxId}`,
+        fail_url: `https://assessly-server.vercel.app/payment/fail/${trxId}`,
+        // cancel_url: "http://localhost:3030/payment/cancel",
+        cancel_url: `https://assessly-server.vercel.app/payment/cancel/${trxId}`,
         ipn_url: "http://localhost:3030/ipn",
         shipping_method: "Courier",
         product_name: "Computer.",
@@ -267,7 +316,7 @@ async function run() {
         // console.log("Redirecting to: ", GatewayPageURL);
 
         const finalPayment = {
-          purchaseInfo,
+          ...purchaseInfo,
           status: "pending",
         };
         const result = paymentsCollection.insertOne(finalPayment);
@@ -280,33 +329,61 @@ async function run() {
 
         const result = await paymentsCollection.updateOne(
           {
-            "purchaseInfo.trxId": trxId,
+            trxId: trxId,
           },
           {
             $set: {
               status: "paid",
+              modifiedAt: new Date(),
             },
           }
         );
         // console.log(result);
         if (result.modifiedCount > 0) {
-          res.redirect(`http://localhost:5173/payment/success/${trxId}`);
+          // res.redirect(`http://localhost:5173/payment/success/${trxId}`);
+          res.redirect(
+            `https://assey-9d4a0.firebaseapp.com/payment/success/${trxId}`
+          );
         }
       });
       app.post("/payment/fail/:trxId", async (req, res) => {
         const { trxId } = req.params;
         const result = await paymentsCollection.updateOne(
           {
-            "purchaseInfo.trxId": trxId,
+            trxId: trxId,
           },
           {
             $set: {
-              status: "cancel",
+              status: "failed",
+              modifiedAt: new Date(),
             },
           }
         );
         if (result.modifiedCount > 0) {
-          res.redirect(`http://localhost:5173/payment/failed/${trxId}`);
+          // res.redirect(`http://localhost:5173/payment/failed/${trxId}`);
+          res.redirect(
+            `https://assey-9d4a0.firebaseapp.com/payment/failed/${trxId}`
+          );
+        }
+      });
+      app.post("/payment/cancel/:trxId", async (req, res) => {
+        const { trxId } = req.params;
+        const result = await paymentsCollection.updateOne(
+          {
+            trxId: trxId,
+          },
+          {
+            $set: {
+              status: "cancel",
+              modifiedAt: new Date(),
+            },
+          }
+        );
+        if (result.modifiedCount > 0) {
+          // res.redirect(`http://localhost:5173/payment/failed/${trxId}`);
+          res.redirect(
+            `https://assey-9d4a0.firebaseapp.com/payment/cancel/${trxId}`
+          );
         }
       });
     });
