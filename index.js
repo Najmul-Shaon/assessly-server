@@ -242,6 +242,54 @@ async function run() {
       res.send(result);
     });
 
+    // get course for specific user
+    app.get("/get/courses/:email", async (req, res) => {
+      const { email } = req.params;
+      console.log(email);
+      // const result = await paymentsCollection.find(query).toArray();
+      const result = await paymentsCollection
+        .aggregate([
+          {
+            $match: {
+              userEmail: email,
+              status: "paid",
+              type: "course",
+            },
+          },
+          {
+            $addFields: {
+              idNum: { $toLong: "$id" },
+            },
+          },
+          {
+            $lookup: {
+              from: "courses",
+              localField: "idNum",
+              foreignField: "courseId",
+              as: "courseDetails",
+            },
+          },
+          {
+            $unwind: "$courseDetails",
+          },
+          {
+            $project: {
+              trxId: "$trxId",
+              courseId: "$courseDetails.courseId",
+              paymentAt: "$paymentAt",
+              class: "$courseDetails.class",
+              fee: "$courseDetails.fee",
+              subject: "$courseDetails.subjects",
+              hasExam: "$courseDetails.includeExam",
+              title: "$courseDetails.title",
+              duration: "$courseDetails.duration",
+            },
+          },
+        ])
+        .toArray();
+      res.send(result);
+    });
+
     // payment area start
 
     app.post("/payment", async (req, res) => {
