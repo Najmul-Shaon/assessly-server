@@ -165,13 +165,13 @@ async function run() {
           },
           {
             $addFields: {
-              examIdNum: { $toLong: "$examId" },
+              idNum: { $toLong: "$id" },
             },
           },
           {
             $lookup: {
               from: "exams",
-              localField: "examIdNum",
+              localField: "idNum",
               foreignField: "examId",
               as: "examDetails",
             },
@@ -245,7 +245,7 @@ async function run() {
     // get course for specific user
     app.get("/get/courses/:email", async (req, res) => {
       const { email } = req.params;
-      console.log(email);
+      // console.log(email);
       // const result = await paymentsCollection.find(query).toArray();
       const result = await paymentsCollection
         .aggregate([
@@ -294,7 +294,7 @@ async function run() {
 
     app.post("/payment", async (req, res) => {
       const { id, type } = req.body;
-      console.log("id", id, "type", type);
+      // console.log("id", id, "type", type);
       let examInfo, courseInfo;
       if (type === "exam") {
         examInfo = await examsCollection.findOne({
@@ -332,7 +332,7 @@ async function run() {
       purchaseInfo.amount = fee;
       purchaseInfo.trxId = trxId;
 
-      console.log(purchaseInfo);
+      // console.log(purchaseInfo);
       const data = {
         total_amount: fee,
         currency: "BDT",
@@ -449,6 +449,26 @@ async function run() {
 
     // payment area end
 
+    // check is paid or not::: by product id, type and userEmail
+    app.get("/check/payment", async (req, res) => {
+      const { id, type, email } = req.query;
+      let paid = false;
+      const query = {
+        userEmail: email,
+        id: id,
+        type: type,
+        status: "paid",
+      };
+
+      const result = await paymentsCollection.findOne(query);
+      if (result) {
+        paid = true;
+      }
+      console.log(id, type, email);
+      console.log(result);
+      res.send({ paid });
+    });
+
     //   create user #public:open to all
     app.post("/create-user", async (req, res) => {
       const user = req.body;
@@ -464,7 +484,7 @@ async function run() {
       }
       const result = await usersCollection.insertOne(user);
       res.send(result);
-      console.log(user);
+      // console.log(user);
     });
 
     // get all users
