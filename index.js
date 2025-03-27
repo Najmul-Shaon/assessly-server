@@ -55,6 +55,7 @@ async function run() {
     const blogsCollection = client.db("AssesslyDB").collection("blogs");
     const courseCollection = client.db("AssesslyDB").collection("courses");
     const paymentsCollection = client.db("AssesslyDB").collection("payments");
+    const readBlogsCollection = client.db("AssesslyDB").collection("readBlogs");
 
     // create  blog
     app.post("/create/blog", async (req, res) => {
@@ -98,6 +99,44 @@ async function run() {
       const numBlogId = parseInt(blogId);
       const query = { blogId: numBlogId };
       const result = await blogsCollection.findOne(query);
+      res.send(result);
+    });
+
+    // create blog as read
+    app.post("/blog/add/read", async (req, res) => {
+      const { readBlog } = req.body;
+
+      const result = await readBlogsCollection.insertOne(readBlog);
+
+      res.send(result);
+    });
+
+    // check blog is already read or not by specific user email
+    app.get("/is-read", async (req, res) => {
+      const { id, user } = req.query;
+
+      let isRead = false;
+
+      const query = {
+        userEmail: user,
+        blogId: id,
+      };
+
+      const result = await readBlogsCollection.findOne(query);
+
+      if (result) {
+        isRead = true;
+      }
+
+      res.send({ isRead });
+    });
+
+    // delete from isRead
+    app.delete("/blog/delete/read", async (req, res) => {
+      const { id, user } = req.query;
+      // console.log(data);
+      const query = { userEmail: user, blogId: id };
+      const result = await readBlogsCollection.deleteOne(query);
       res.send(result);
     });
 
