@@ -140,6 +140,48 @@ async function run() {
       res.send(result);
     });
 
+    // get read blogs for spefic user
+    app.get("/blogs/read/:email", async (req, res) => {
+      const { email } = req.params;
+      const result = await readBlogsCollection
+        .aggregate([
+          {
+            $match: {
+              userEmail: email,
+            },
+          },
+          {
+            $addFields: {
+              blogIdNum: { $toLong: "$blogId" },
+            },
+          },
+          {
+            $lookup: {
+              from: "blogs",
+              localField: "blogIdNum",
+              foreignField: "blogId",
+              as: "blogDetails",
+            },
+          },
+          {
+            $unwind: "$blogDetails",
+          },
+          {
+            $project: {
+              blogId: "$blogDetails.blogId",
+              author: "$blogDetails.createdAuthor",
+              title: "$blogDetails.title",
+              readingTime: "$blogDetails.readingTime",
+              topic: "$blogDetails.topic",
+              class: "$blogDetails.class",
+              readAt: "$createdAt",
+            },
+          },
+        ])
+        .toArray();
+      res.send(result);
+    });
+
     // create exam
     app.post("/create/exam", async (req, res) => {
       const examInfo = { ...req.body };
