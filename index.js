@@ -530,6 +530,19 @@ async function run() {
 
     // payment area end
 
+    // get specific payment details for specific user
+    app.get("/payments/history/:email", async (req, res) => {
+      const { email } = req.params;
+      console.log(email);
+
+      const query = {
+        userEmail: email,
+        status: "paid",
+      };
+      const result = await paymentsCollection.find(query).toArray();
+      res.send(result);
+    });
+
     // check is paid or not::: by product id, type and userEmail
     app.get("/check/payment", async (req, res) => {
       const { id, type, email } = req.query;
