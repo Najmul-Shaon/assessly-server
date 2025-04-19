@@ -56,6 +56,9 @@ async function run() {
     const courseCollection = client.db("AssesslyDB").collection("courses");
     const paymentsCollection = client.db("AssesslyDB").collection("payments");
     const readBlogsCollection = client.db("AssesslyDB").collection("readBlogs");
+    const enrolledExamCollection = client
+      .db("AssesslyDB")
+      .collection("enrolledExams");
 
     // create  blog
     app.post("/create/blog", async (req, res) => {
@@ -134,7 +137,7 @@ async function run() {
     // delete from isRead
     app.delete("/blog/delete/read", async (req, res) => {
       const { id, user } = req.query;
-      // console.log(data);
+
       const query = { userEmail: user, blogId: id };
       const result = await readBlogsCollection.deleteOne(query);
       res.send(result);
@@ -185,6 +188,25 @@ async function run() {
     // create exam
     app.post("/create/exam", async (req, res) => {
       const examInfo = { ...req.body };
+
+      // generate random code
+      const generateUniqueCode = () => {
+        // take last 6 digit from timeStamp
+        const timeStamp = Date.now().toString(36).slice(-3);
+        // get randomly 3 digit
+        const randomString = Math.random().toString(36).slice(2, 5);
+
+        // make unique code and return
+        return timeStamp + randomString;
+      };
+
+      if (examInfo?.examType === "group") {
+        // store uniqueCode
+        const uniqueCode = generateUniqueCode();
+
+        // add to examInfo
+        examInfo.examCode = uniqueCode;
+      }
 
       const counterDoc = await counterCollection.findOne({
         id: "taskIdCounter",
@@ -275,6 +297,50 @@ async function run() {
         ])
         .toArray();
       res.send(result);
+    });
+
+    // enroll group exam ::: by specific user
+    app.post("/api/post/group-exam/enroll", async (req, res) => {
+      const { examCode, user } = { ...req.query };
+
+      let isFound = false;
+
+      const queryToGetExamFromDb = {
+        examCode: examCode,
+      };
+
+      // check code is valid or not
+      // get exam code from db
+      const examFromDb = await examsCollection.findOne(queryToGetExamFromDb);
+
+      // if already enrolled
+      const queryToCheckIsAlreadyEnrolled = {
+        examId: examFromDb?.examId,
+      };
+
+      const existingExam = await enrolledExamCollection.findOne(
+        queryToCheckIsAlreadyEnrolled
+      );
+
+      if (existingExam) {
+        isFound = true;
+        return res.send({ isFound });
+      }
+
+      // if not already existing
+      const enrolledExamInfo = {
+        createAt: new Date(),
+        userEmail: user,
+        examId: examFromDb?.examId,
+        startDate: examFromDb?.startDate,
+        endDate: examFromDb?.endDate,
+      };
+
+      if (examFromDb) {
+        await enrolledExamCollection.insertOne(enrolledExamInfo);
+        isFound = true;
+      }
+      res.send({ isFound });
     });
 
     // create course
