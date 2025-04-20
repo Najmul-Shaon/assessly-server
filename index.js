@@ -56,9 +56,9 @@ async function run() {
     const courseCollection = client.db("AssesslyDB").collection("courses");
     const paymentsCollection = client.db("AssesslyDB").collection("payments");
     const readBlogsCollection = client.db("AssesslyDB").collection("readBlogs");
-    const enrolledExamCollection = client
+    const enrolledProductCollection = client
       .db("AssesslyDB")
-      .collection("enrolledExams");
+      .collection("enrolledProduct");
 
     // create  blog
     app.post("/create/blog", async (req, res) => {
@@ -315,10 +315,10 @@ async function run() {
 
       // if already enrolled
       const queryToCheckIsAlreadyEnrolled = {
-        examId: examFromDb?.examId,
+        id: examFromDb?.examId,
       };
 
-      const existingExam = await enrolledExamCollection.findOne(
+      const existingExam = await enrolledProductCollection.findOne(
         queryToCheckIsAlreadyEnrolled
       );
 
@@ -331,13 +331,12 @@ async function run() {
       const enrolledExamInfo = {
         createAt: new Date(),
         userEmail: user,
-        examId: examFromDb?.examId,
-        startDate: examFromDb?.startDate,
-        endDate: examFromDb?.endDate,
+        id: examFromDb?.examId,
+        type: "exam",
       };
 
       if (examFromDb) {
-        await enrolledExamCollection.insertOne(enrolledExamInfo);
+        await enrolledProductCollection.insertOne(enrolledExamInfo);
         isFound = true;
       }
       res.send({ isFound });
@@ -456,7 +455,7 @@ async function run() {
         // return courseInfo;
       }
 
-      const purchaseInfo = req.body;
+      const purchaseInfo = { ...req.body };
 
       const fee = examInfo?.fee || courseInfo?.fee;
       const trxId = new ObjectId().toString();
@@ -544,6 +543,19 @@ async function run() {
             },
           }
         );
+
+        const enrolledProductInfo = {
+          createAt: new Date(),
+          userEmail: purchaseInfo?.userEmail,
+          id: Number(purchaseInfo?.id),
+          type: purchaseInfo?.type,
+        };
+
+        // if (examFromDb) {
+        await enrolledProductCollection.insertOne(enrolledProductInfo);
+        //   isFound = true;
+        // }
+
         // console.log(result);
         if (result.modifiedCount > 0) {
           // res.redirect(`http://localhost:5173/payment/success/${trxId}`);
@@ -599,7 +611,7 @@ async function run() {
     // get specific payment details for specific user
     app.get("/payments/history/:email", async (req, res) => {
       const { email } = req.params;
-      console.log(email);
+      // console.log(email);
 
       const query = {
         userEmail: email,
@@ -624,8 +636,8 @@ async function run() {
       if (result) {
         paid = true;
       }
-      console.log(id, type, email);
-      console.log(result);
+      // console.log(id, type, email);
+      // console.log(result);
       res.send({ paid });
     });
 
