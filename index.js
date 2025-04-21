@@ -716,6 +716,38 @@ async function run() {
       res.send(result);
     });
 
+    // get specific user info by user email
+    app.get("/api/user", async (req, res) => {
+      const { email } = req.query;
+      const result = await usersCollection.findOne({
+        userEmail: email,
+      });
+      res.send(result);
+    });
+
+    // update specific user info by user email
+    app.patch("/api/update-user", async (req, res) => {
+      const { email } = req.query;
+      const updateInfo = { ...req.body };
+
+      const result = await usersCollection.updateOne(
+        { userEmail: email },
+        {
+          $set: {
+            gender: updateInfo.gender,
+            dateOfBirth: updateInfo.dateOfBirth,
+            phone: updateInfo.phone,
+            country: updateInfo.country,
+            city: updateInfo.city,
+            postalCode: updateInfo.postalCode,
+            modifiedAt: String(new Date()),
+          },
+        }
+      );
+
+      res.send(result);
+    });
+
     // check specific user that he/she admin or not::::: by email
     // todo: need to verify token and verify admin
     app.get("/user/admin/:email", async (req, res) => {
