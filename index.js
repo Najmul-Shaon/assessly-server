@@ -256,19 +256,17 @@ async function run() {
     // get exams for specific user
     app.get("/get/exams/:email", async (req, res) => {
       const { email } = req.params;
-      // const result = await paymentsCollection.find(query).toArray();
-      const result = await paymentsCollection
+      const result = await enrolledProductCollection
         .aggregate([
           {
             $match: {
               userEmail: email,
-              status: "paid",
               type: "exam",
             },
           },
           {
             $addFields: {
-              idNum: { $toLong: "$id" },
+              idNum: { $toLong: "$productId" },
             },
           },
           {
@@ -285,13 +283,23 @@ async function run() {
           {
             $project: {
               trxId: "$trxId",
-              examId: "$examDetails.examId",
+              paymentAt: "$createAt",
+              description: "$examDetails.description",
+              duration: "$examDetails.duration",
+              endDate: "$examDetails.endDate",
+              startDate: "$examDetails.startDate",
               examTitle: "$examDetails.examTitle",
               examTopic: "$examDetails.examTopic",
+              examClass: "$examDetails.examClass",
               examType: "$examDetails.examType",
+              faceCam: "$examDetails.faceCam",
               examFee: "$examDetails.fee",
+              thumbnails: "$examDetails.thumbnails",
               examMarks: "$examDetails.totalMarks",
-              paymentAt: "$paymentAt",
+              uniqueQuestions: "$examDetails.uniqueQuestions",
+              isNegativeMarks: "$examDetails.isNegativeMarks",
+              negativeMark: "$examDetails.negativeMark",
+              examId: "$examDetails.examId",
             },
           },
         ])
@@ -315,7 +323,7 @@ async function run() {
 
       // if already enrolled
       const queryToCheckIsAlreadyEnrolled = {
-        id: examFromDb?.examId,
+        productId: examFromDb?.examId,
       };
 
       const existingExam = await enrolledProductCollection.findOne(
@@ -331,7 +339,7 @@ async function run() {
       const enrolledExamInfo = {
         createAt: new Date(),
         userEmail: user,
-        id: examFromDb?.examId,
+        productId: examFromDb?.examId,
         type: "exam",
       };
 
@@ -401,7 +409,7 @@ async function run() {
           },
           {
             $addFields: {
-              idNum: { $toLong: "$id" },
+              idNum: { $toLong: "$productId" },
             },
           },
           {
@@ -418,14 +426,18 @@ async function run() {
           {
             $project: {
               trxId: "$trxId",
-              courseId: "$courseDetails.courseId",
-              paymentAt: "$paymentAt",
+              enrolledAt: "$createAt",
               class: "$courseDetails.class",
+              description: "$courseDetails.courseDetails",
+              examId: "$courseDetails.examId",
               fee: "$courseDetails.fee",
               subject: "$courseDetails.subjects",
               hasExam: "$courseDetails.includeExam",
+              thumbnail: "$courseDetails.thumbnail",
               title: "$courseDetails.title",
+              video: "$courseDetails.video",
               duration: "$courseDetails.duration",
+              courseId: "$courseDetails.courseId",
             },
           },
         ])
@@ -592,12 +604,11 @@ async function run() {
           type: getPaymentInfo?.type,
         };
 
-        console.log(getPaymentInfo);
+        const insertResult = await enrolledProductCollection.insertOne(
+          enrolledProductInfo
+        );
 
-        enrolledProductCollection.insertOne(enrolledProductInfo);
-
-        console.log(enrolledProductInfo);
-        if (updateResult.modifiedCount > 0) {
+        if (updateResult.modifiedCount > 0 && insertResult.insertedId) {
           res.redirect(`http://localhost:5173/payment/success/${trxId}`);
           // res.redirect(
           //   `https://assey-9d4a0.firebaseapp.com/payment/success/${trxId}`
