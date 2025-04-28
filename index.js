@@ -61,6 +61,38 @@ async function run() {
       .db("AssesslyDB")
       .collection("enrolledProduct");
 
+    // middlewares
+    const verifyToken = (req, res, next) => {
+      console.log(req.headers.authorization);
+      // next();
+
+      if (!req.headers.authorization) {
+        return res.status(401).send({ message: "unauthorized access" });
+      }
+      const token = req.headers.authorization.split(" ")[1];
+
+      jwt.verify(token, process.env.ACCESS_TOKEN, (error, decoded) => {
+        if (error) {
+          return res.status(401).send({ message: "unauthorized access" });
+        }
+        req.decoded = decoded;
+        next();
+      });
+    };
+
+    // verify admin
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email;
+
+      const query = { userEmail: email };
+
+      const user = await usersCollection.findOne(query);
+      const isAdmin = user?.userRole === "admin";
+      if (!isAdmin) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      next();
+    };
     // jwt related api
 
     app.post("/jwt", async (req, res) => {
@@ -407,7 +439,7 @@ async function run() {
     });
 
     // get course for specific user
-    app.get("/get/courses/:email", async (req, res) => {
+    app.get("/get/courses/:email", verifyToken, async (req, res) => {
       const { email } = req.params;
       const result = await enrolledProductCollection
         .aggregate([
@@ -760,8 +792,12 @@ async function run() {
 
     // check specific user that he/she admin or not::::: by email
     // todo: need to verify token and verify admin
-    app.get("/user/admin/:email", async (req, res) => {
+    app.get("/user/admin/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
+
+      if (email !== req.decoded.email) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
 
       const query = { userEmail: email };
       const user = await usersCollection.findOne(query);
