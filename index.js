@@ -3,6 +3,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const SSLCommerzPayment = require("sslcommerz-lts");
 const express = require("express");
 const app = express();
+const jwt = require("jsonwebtoken");
 
 const cors = require("cors");
 
@@ -60,6 +61,15 @@ async function run() {
       .db("AssesslyDB")
       .collection("enrolledProduct");
 
+    // jwt related api
+
+    app.post("/jwt", async (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN, {
+        expiresIn: "1h",
+      });
+      res.send({ token });
+    });
     // create  blog
     app.post("/create/blog", async (req, res) => {
       const blogInfo = { ...req.body };
@@ -752,10 +762,6 @@ async function run() {
     // todo: need to verify token and verify admin
     app.get("/user/admin/:email", async (req, res) => {
       const email = req.params.email;
-      // console.log(email);
-      // if (email !== req.decoded.email) {
-      //   return res.status(403).send({ message: "forbidden access" });
-      // }
 
       const query = { userEmail: email };
       const user = await usersCollection.findOne(query);
@@ -770,11 +776,6 @@ async function run() {
     // todo: need to verify token and verify admin
     app.get("/user/regular/:email", async (req, res) => {
       const email = req.params.email;
-      // console.log(email);
-      // if (email !== req.decoded.email) {
-      //   return res.status(403).send({ message: "forbidden access" });
-      // }
-
       const query = { userEmail: email };
       const user = await usersCollection.findOne(query);
       let isUser = false;
