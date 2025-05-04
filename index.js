@@ -62,6 +62,7 @@ async function run() {
       .collection("enrolledProduct");
 
     // middlewares
+    // verifyToken middleware
     const verifyToken = (req, res, next) => {
       console.log(req.headers.authorization);
       // next();
@@ -80,7 +81,7 @@ async function run() {
       });
     };
 
-    // verify admin
+    // verify admin middleware
     const verifyAdmin = async (req, res, next) => {
       const email = req.decoded.email;
 
@@ -93,8 +94,8 @@ async function run() {
       }
       next();
     };
-    // jwt related api
 
+    // jwt related api
     app.post("/jwt", async (req, res) => {
       const user = req.body;
       const token = jwt.sign(user, process.env.ACCESS_TOKEN, {
@@ -102,8 +103,9 @@ async function run() {
       });
       res.send({ token });
     });
-    // create  blog
-    app.post("/create/blog", async (req, res) => {
+
+    // create  blog:::admin
+    app.post("/create/blog", verifyToken, verifyAdmin, async (req, res) => {
       const blogInfo = { ...req.body };
       const counterDoc = await counterCollection.findOne({
         id: "taskIdCounter",
@@ -125,7 +127,7 @@ async function run() {
       res.send(result);
     });
 
-    // get all blogs
+    // get all blogs::: public
     app.get("/get/blogs", async (req, res) => {
       const { limit } = req.query;
       if (limit === "all") {
@@ -138,7 +140,7 @@ async function run() {
       }
     });
 
-    // get individual blog by blog id
+    // get individual blog by blog id ::: public
     app.get("/get/blog/:id", async (req, res) => {
       const blogId = req.params.id;
       const numBlogId = parseInt(blogId);
@@ -147,7 +149,8 @@ async function run() {
       res.send(result);
     });
 
-    // create blog as read
+    // create blog as read ::: user
+    // app.post("/blog/add/read", verifyToken, async (req, res) => {
     app.post("/blog/add/read", async (req, res) => {
       const { readBlog } = req.body;
 
@@ -156,7 +159,8 @@ async function run() {
       res.send(result);
     });
 
-    // check blog is already read or not by specific user email
+    // check blog is already read or not by specific user email ::: user
+    // app.get("/is-read", verifyToken, async (req, res) => {
     app.get("/is-read", async (req, res) => {
       const { id, user } = req.query;
 
@@ -176,7 +180,8 @@ async function run() {
       res.send({ isRead });
     });
 
-    // delete from isRead
+    // delete from isRead ::: user
+    // app.delete("/blog/delete/read", verifyToken, async (req, res) => {
     app.delete("/blog/delete/read", async (req, res) => {
       const { id, user } = req.query;
 
@@ -185,7 +190,8 @@ async function run() {
       res.send(result);
     });
 
-    // get read blogs for spefic user
+    // get read blogs for spefic user:::user
+    // app.get("/blogs/read/:email", verifyToken, async (req, res) => {
     app.get("/blogs/read/:email", async (req, res) => {
       const { email } = req.params;
       const result = await readBlogsCollection
@@ -227,7 +233,8 @@ async function run() {
       res.send(result);
     });
 
-    // create exam
+    // create exam:::admin
+    // app.post("/create/exam", verifyToken, verifyAdmin, async (req, res) => {
     app.post("/create/exam", async (req, res) => {
       const examInfo = { ...req.body };
 
@@ -267,7 +274,7 @@ async function run() {
       res.send(result);
     });
 
-    // get all exam to show dashboard
+    // get all exam :::: public
     app.get("/get/all-exams", async (req, res) => {
       const { type } = req.query;
       if (type === "single") {
@@ -286,7 +293,7 @@ async function run() {
       }
     });
 
-    // get individual exam by exam id
+    // get individual exam by exam id:::public
     app.get("/get/exam/:id", async (req, res) => {
       const examId = req.params.id;
       const numExamId = parseInt(examId);
@@ -295,7 +302,8 @@ async function run() {
       res.send(result);
     });
 
-    // get exams for specific user
+    // get exams for specific user:::user
+    // app.get("/get/exams/:email", verifyToken, async (req, res) => {
     app.get("/get/exams/:email", async (req, res) => {
       const { email } = req.params;
       const result = await enrolledProductCollection
@@ -349,7 +357,8 @@ async function run() {
       res.send(result);
     });
 
-    // enroll group exam ::: by specific user
+    // enroll group exam ::: by specific user::: user
+    // app.post("/api/post/group-exam/enroll", verifyToken, async (req, res) => {
     app.post("/api/post/group-exam/enroll", async (req, res) => {
       const { examCode, user } = { ...req.query };
 
@@ -392,7 +401,8 @@ async function run() {
       res.send({ isFound });
     });
 
-    // create course
+    // create course:::admin
+    // app.post("/create-course", verifyToken, verifyAdmin, async (req, res) => {
     app.post("/create-course", async (req, res) => {
       const courseInfo = { ...req.body };
       const counterDoc = await counterCollection.findOne({
@@ -415,7 +425,7 @@ async function run() {
       res.send(result);
     });
 
-    // get all courses
+    // get all courses:::public
     app.get("/get-all-courses", async (req, res) => {
       const { type } = req.query;
 
@@ -429,7 +439,7 @@ async function run() {
       }
     });
 
-    // get individual course by exam id
+    // get individual course by course id::: public
     app.get("/get/course/:id", async (req, res) => {
       const courseId = req.params.id;
       const numCourseId = parseInt(courseId);
@@ -438,8 +448,9 @@ async function run() {
       res.send(result);
     });
 
-    // get course for specific user
-    app.get("/get/courses/:email", verifyToken, async (req, res) => {
+    // get course for specific user:::user
+    // app.get("/get/courses/:email", verifyToken, async (req, res) => {
+    app.get("/get/courses/:email", async (req, res) => {
       const { email } = req.params;
       const result = await enrolledProductCollection
         .aggregate([
@@ -527,8 +538,9 @@ async function run() {
       res.send(result);
     });
 
-    // payment area start
+    // payment area start:::user
 
+    // app.post("/payment", verifyToken, async (req, res) => {
     app.post("/payment", async (req, res) => {
       const { id, type } = req.body;
       // console.log("id", id, "type", type);
@@ -574,12 +586,12 @@ async function run() {
         total_amount: fee,
         currency: "BDT",
         tran_id: trxId,
-        success_url: `http://localhost:5000/payment/success/${trxId}`,
-        // success_url: `https://assessly-server.vercel.app/payment/success/${trxId}`,
-        fail_url: `http://localhost:5000/payment/fail/${trxId}`,
-        // fail_url: `https://assessly-server.vercel.app/payment/fail/${trxId}`,
-        cancel_url: "http://localhost:5000/payment/cancel",
-        // cancel_url: `https://assessly-server.vercel.app/payment/cancel/${trxId}`,
+        // success_url: `http://localhost:5000/payment/success/${trxId}`,
+        success_url: `https://assessly-server.vercel.app/payment/success/${trxId}`,
+        // fail_url: `http://localhost:5000/payment/fail/${trxId}`,
+        fail_url: `https://assessly-server.vercel.app/payment/fail/${trxId}`,
+        // cancel_url: "http://localhost:5000/payment/cancel",
+        cancel_url: `https://assessly-server.vercel.app/payment/cancel/${trxId}`,
         ipn_url: "http://localhost:3030/ipn",
         shipping_method: "Courier",
         product_name: "Computer.",
@@ -651,10 +663,10 @@ async function run() {
         );
 
         if (updateResult.modifiedCount > 0 && insertResult.insertedId) {
-          res.redirect(`http://localhost:5173/payment/success/${trxId}`);
-          // res.redirect(
-          //   `https://assey-9d4a0.firebaseapp.com/payment/success/${trxId}`
-          // );
+          // res.redirect(`http://localhost:5173/payment/success/${trxId}`);
+          res.redirect(
+            `https://assey-9d4a0.firebaseapp.com/payment/success/${trxId}`
+          );
         }
       });
       app.post("/payment/fail/:trxId", async (req, res) => {
@@ -701,7 +713,8 @@ async function run() {
 
     // payment area end
 
-    // get specific payment details for specific user
+    // get specific payment details for specific user:::user
+    // app.get("/payments/history/:email", verifyToken, async (req, res) => {
     app.get("/payments/history/:email", async (req, res) => {
       const { email } = req.params;
       // console.log(email);
@@ -714,7 +727,8 @@ async function run() {
       res.send(result);
     });
 
-    // check is paid or not::: by product id, type and userEmail
+    // check is paid or not::: by product id, type and userEmail ::: user
+    // app.get("/check/payment", verifyToken, async (req, res) => {
     app.get("/check/payment", async (req, res) => {
       const { id, type, email } = req.query;
       let paid = false;
@@ -734,7 +748,7 @@ async function run() {
       res.send({ paid });
     });
 
-    //   create user #public:open to all
+    //   create user #public:::open to all
     app.post("/create-user", async (req, res) => {
       const user = req.body;
 
@@ -752,13 +766,15 @@ async function run() {
       // console.log(user);
     });
 
-    // get all users
+    // get all users:::admin
+    // app.get("/get/all-users", verifyToken, verifyAdmin, async (req, res) => {
     app.get("/get/all-users", async (req, res) => {
       const result = await usersCollection.find().toArray();
       res.send(result);
     });
 
-    // get specific user info by user email
+    // get specific user info by user email:::user
+    // app.get("/api/user", verifyToken, async (req, res) => {
     app.get("/api/user", async (req, res) => {
       const { email } = req.query;
       const result = await usersCollection.findOne({
@@ -767,7 +783,8 @@ async function run() {
       res.send(result);
     });
 
-    // update specific user info by user email
+    // update specific user info by user email:::user
+    // app.patch("/api/update-user", verifyToken, async (req, res) => {
     app.patch("/api/update-user", async (req, res) => {
       const { email } = req.query;
       const updateInfo = { ...req.body };
@@ -791,8 +808,8 @@ async function run() {
     });
 
     // check specific user that he/she admin or not::::: by email
-    // todo: need to verify token and verify admin
-    app.get("/user/admin/:email", verifyToken, async (req, res) => {
+    // app.get("/user/admin/:email", verifyToken, async (req, res) => {
+    app.get("/user/admin/:email", async (req, res) => {
       const email = req.params.email;
 
       if (email !== req.decoded.email) {
@@ -808,8 +825,8 @@ async function run() {
       res.send({ isAdmin });
     });
 
-    // check specific user that he/she admin or not::::: by email
-    // todo: need to verify token and verify admin
+    // check specific user that he/she regular user or not::::: by email
+    // app.get("/user/regular/:email", verifyToken, async (req, res) => {
     app.get("/user/regular/:email", async (req, res) => {
       const email = req.params.email;
       const query = { userEmail: email };
