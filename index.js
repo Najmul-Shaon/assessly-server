@@ -57,6 +57,9 @@ async function run() {
     const courseCollection = client.db("AssesslyDB").collection("courses");
     const paymentsCollection = client.db("AssesslyDB").collection("payments");
     const readBlogsCollection = client.db("AssesslyDB").collection("readBlogs");
+    const examSubmissionCollection = client
+      .db("AssesslyDB")
+      .collection("examSubmission");
     const enrolledProductCollection = client
       .db("AssesslyDB")
       .collection("enrolledProduct");
@@ -631,8 +634,6 @@ async function run() {
       });
 
       app.post("/payment/success/:trxId", async (req, res) => {
-        // console.log(req.params.trxId, examId);
-
         const { trxId } = req.params;
 
         const updateResult = await paymentsCollection.updateOne(
@@ -717,7 +718,7 @@ async function run() {
     // app.get("/payments/history/:email", verifyToken, async (req, res) => {
     app.get("/payments/history/:email", async (req, res) => {
       const { email } = req.params;
-      // console.log(email);
+
 
       const query = {
         userEmail: email,
@@ -743,8 +744,6 @@ async function run() {
       if (result) {
         paid = true;
       }
-      // console.log(id, type, email);
-      // console.log(result);
       res.send({ paid });
     });
 
@@ -763,7 +762,6 @@ async function run() {
       }
       const result = await usersCollection.insertOne(user);
       res.send(result);
-      // console.log(user);
     });
 
     // get all users:::admin
@@ -812,9 +810,10 @@ async function run() {
     app.get("/user/admin/:email", async (req, res) => {
       const email = req.params.email;
 
-      if (email !== req.decoded.email) {
-        return res.status(403).send({ message: "forbidden access" });
-      }
+      // todo: need to update this after adding jwt
+      // if (email !== req.decoded.email) {
+      //   return res.status(403).send({ message: "forbidden access" });
+      // }
 
       const query = { userEmail: email };
       const user = await usersCollection.findOne(query);
@@ -836,6 +835,80 @@ async function run() {
         isUser = user?.userRole === "user";
       }
       res.send({ isUser });
+    });
+
+    // get saved exam question for specific student
+    app.get("/get/saved-exam/:id", async (req, res) => {
+      const examId = req.params.id;
+      const email = req.query.email;
+
+      const filter = {
+        examId: examId,
+        email: email,
+      };
+
+      try {
+        // const collection = db.collection("savedExams");
+        const saved = await examSubmissionCollection.findOne(filter);
+
+        if (saved) {
+          res.status(200).json(saved);
+        } else {
+          res.status(200).json({ message: "No saved exam found." });
+        }
+      } catch (error) {
+        console.error("Error fetching saved exam:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+      }
+    });
+
+    // exam submission
+    app.post("/submit/exam", async (req, res) => {
+      // const { questions, examId, email, answers, submitAt } =
+      //   req.body.submitData;
+      // const submitData = { questions, examId, email, answers, submitAt };
+      // const result = await examSubmissionCollection.insertOne(submitData);
+
+      const submitData = req.body;
+
+      const counterDoc = await counterCollection.findOne({
+        id: "taskIdCounter",
+      });
+
+      const newId = counterDoc.lastSubmitId + 1;
+
+      await counterCollection.updateOne(
+        { id: "taskIdCounter" },
+        { $set: { lastSubmitId: newId } }
+      );
+
+      submitData.submitId = newId;
+
+      const result = await examSubmissionCollection.insertOne(submitData);
+
+      res.send(result);
+    });
+
+    // update submit exam status and save student answer
+    app.patch("/submit/exam", async (req, res) => {
+      const { submitData } = req.body;
+      const { id, email } = req.query;
+
+      const query = { examId: id, email: email };
+
+      const updateData = {
+        $set: {
+          modified_at: submitData?.modified_at,
+          studentAnswers: submitData?.answers,
+          status: "submitted",
+        },
+      };
+
+      const result = await examSubmissionCollection.updateOne(
+        query,
+        updateData
+      );
+      res.send(result);
     });
   } finally {
     // Ensures that the client will close when you finish/error
