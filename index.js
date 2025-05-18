@@ -57,6 +57,9 @@ async function run() {
     const courseCollection = client.db("AssesslyDB").collection("courses");
     const paymentsCollection = client.db("AssesslyDB").collection("payments");
     const readBlogsCollection = client.db("AssesslyDB").collection("readBlogs");
+    const courseVideoStatusCollection = client
+      .db("AssesslyDB")
+      .collection("courseVideoStatus");
     const examsResultCollection = client
       .db("AssesslyDB")
       .collection("examsResult");
@@ -859,7 +862,6 @@ async function run() {
           res.status(200).json({ message: "No saved exam found." });
         }
       } catch (error) {
-        console.error("Error fetching saved exam:", error);
         res.status(500).json({ error: "Internal Server Error" });
       }
     });
@@ -1014,6 +1016,43 @@ async function run() {
       }
       // console.log(id, email, result);
       res.send({ isSubmit });
+    });
+
+    // get exam individual exam result
+    app.get("/exam/result", async (req, res) => {
+      // ?id=${examId}&email=${email}"
+      const { id, email } = req.query;
+      const query = { examId: id, email: email };
+      const result = await examsResultCollection.findOne(query);
+      res.send(result);
+    });
+
+    // complete video
+    app.post("/course/complete", async (req, res) => {
+      const { courseId, email } = req.query;
+      const courseCompleteData = { ...req.body };
+      const result = await courseVideoStatusCollection.insertOne(
+        courseCompleteData
+      );
+      res.send(result);
+    });
+
+    // check course complete or not for specific user
+    app.get("/check/course", async (req, res) => {
+      const { courseId, email } = req.query;
+
+      const query = {
+        courseId: courseId,
+        email: email,
+      };
+
+      let isComplete = false;
+
+      const result = await courseVideoStatusCollection.findOne(query);
+      if (result) {
+        isComplete = true;
+      }
+      res.send({ isComplete });
     });
   } finally {
     // Ensures that the client will close when you finish/error
