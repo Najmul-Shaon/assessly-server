@@ -57,6 +57,9 @@ async function run() {
     const courseCollection = client.db("AssesslyDB").collection("courses");
     const paymentsCollection = client.db("AssesslyDB").collection("payments");
     const readBlogsCollection = client.db("AssesslyDB").collection("readBlogs");
+    const examsResultCollection = client
+      .db("AssesslyDB")
+      .collection("examsResult");
     const examSubmissionCollection = client
       .db("AssesslyDB")
       .collection("examSubmission");
@@ -719,7 +722,6 @@ async function run() {
     app.get("/payments/history/:email", async (req, res) => {
       const { email } = req.params;
 
-
       const query = {
         userEmail: email,
         status: "paid",
@@ -908,7 +910,110 @@ async function run() {
         query,
         updateData
       );
-      res.send(result);
+
+      if (result.modifiedCount > 0) {
+        const { totalMarks, isNegativeMarks, negativeMark, passMark } =
+          await examsCollection.findOne({
+            examId: Number(id),
+          });
+
+        const totalMarksNumber = Number(totalMarks);
+        const negativeMarkNumber = Number(negativeMark);
+        const passMarkNumber = Number(passMark);
+
+        const { questions, studentAnswers, submitId } =
+          await examSubmissionCollection.findOne({
+            examId: id,
+            email: email,
+          });
+
+        // const questions = [
+        //   /* your array of questions */
+        // ];
+        // const userAnswers = ["a", "d", "c", "b"]; // user answers, indexed by question
+
+        let totalRight = 0;
+        let totalWrong = 0;
+        let totalSkip = 0;
+
+        questions.forEach((question, index) => {
+          const correct = question.ans?.toLowerCase();
+          const user = studentAnswers[index]?.toLowerCase();
+
+          if (!user) {
+            totalSkip++;
+          } else if (user === correct) {
+            totalRight++;
+          } else {
+            totalWrong++;
+          }
+        });
+
+        const totalAnswered = totalRight + totalWrong;
+
+        const perQuestionMark = totalMarksNumber / questions.length;
+        const obtainMarks = perQuestionMark * totalRight;
+        let totalNegativeMark = 0;
+        if (isNegativeMarks) {
+          const negPerQuestionMark = negativeMarkNumber / 100;
+          totalNegativeMark = negPerQuestionMark * totalWrong;
+        }
+        const finalObtainMark = obtainMarks - totalNegativeMark;
+        const isPass = finalObtainMark >= passMarkNumber ? "Passed" : "Failed";
+
+        const counterDoc = await counterCollection.findOne({
+          id: "taskIdCounter",
+        });
+
+        const newId = counterDoc.lastResultId + 1;
+
+        await counterCollection.updateOne(
+          { id: "taskIdCounter" },
+          { $set: { lastResultId: newId } }
+        );
+
+        const finalResult = {
+          create_at: new Date(),
+          resultId: newId,
+          submitId,
+          examId: id,
+          email,
+          totalMarks,
+          totalSkip,
+          totalRight,
+          totalWrong,
+          totalAnswered,
+          totalNegativeMark,
+          obtainMarks: finalObtainMark,
+          status: isPass,
+        };
+        const saveFinalResult = await examsResultCollection.insertOne(
+          finalResult
+        );
+        if (saveFinalResult.insertedId) {
+          return res.send(result);
+        }
+      }
+
+      res.send({ message: "Something went wrong!" });
+    });
+
+    // check is already submitted the exma or not
+    app.get("/check/is-submit", async (req, res) => {
+      const { id, email } = req.query;
+      const query = {
+        examId: id,
+        email: email,
+      };
+
+      let isSubmit = false;
+
+      const result = await examSubmissionCollection.findOne(query);
+      if (result) {
+        isSubmit = true;
+      }
+      // console.log(id, email, result);
+      res.send({ isSubmit });
     });
   } finally {
     // Ensures that the client will close when you finish/error
