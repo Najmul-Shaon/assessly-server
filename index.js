@@ -1060,6 +1060,64 @@ async function run() {
       }
       res.send({ isComplete });
     });
+
+    // dashboard stats for regular user
+    app.get("/get/dashboard-stats/regular-user", async (req, res) => {
+      const { user } = req.query;
+
+      const query = { userEmail: user };
+
+      // Count read blogs
+      const readBlogCount = await readBlogsCollection.countDocuments(query);
+
+      // Count enrolled courses
+      const enrolledCoursesCount =
+        await enrolledProductCollection.countDocuments({
+          userEmail: user,
+          type: "course",
+        });
+
+      // Count enrolled exams
+      const enrolledExamsCount = await enrolledProductCollection.countDocuments(
+        {
+          userEmail: user,
+          type: "exam",
+        }
+      );
+
+      const payments = await paymentsCollection
+        .aggregate([
+          {
+            $match: {
+              userEmail: user,
+              status: "paid",
+            },
+          },
+          {
+            $addFields: {
+              numericAmount: { $toDouble: "$amount" }, // Convert string to number
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              totalPaid: { $sum: "$numericAmount" },
+            },
+          },
+        ])
+        .toArray();
+
+      const totalPaidAmount = payments[0]?.totalPaid || 0;
+
+      const finalStatsForRegularUser = {
+        readBlogCount,
+        enrolledCoursesCount,
+        enrolledExamsCount,
+        totalPaidAmount,
+      };
+
+      res.send(finalStatsForRegularUser);
+    });
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
