@@ -370,7 +370,6 @@ async function run() {
     // app.post("/api/post/group-exam/enroll", verifyToken, async (req, res) => {
     app.post("/api/post/group-exam/enroll", async (req, res) => {
       const { examCode, user } = { ...req.query };
-
       let isFound = false;
 
       const queryToGetExamFromDb = {
@@ -384,6 +383,7 @@ async function run() {
       // if already enrolled
       const queryToCheckIsAlreadyEnrolled = {
         productId: examFromDb?.examId,
+        userEmail: user,
       };
 
       const existingExam = await enrolledProductCollection.findOne(
