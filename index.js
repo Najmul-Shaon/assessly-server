@@ -597,15 +597,18 @@ async function run() {
         tran_id: trxId,
         // success_url: `http://localhost:5000/payment/success/${trxId}`,
         // success_url: `https://assessly-server.vercel.app/payment/success/${trxId}`,
-        success_url: `https://assessly-server-production.up.railway.app/payment/success/${trxId}`,
+        // success_url: `https://assessly-server-production.up.railway.app/payment/success/${trxId}`,
+        success_url: `https://assessly-server.onrender.com/payment/success/${trxId}`,
 
         // fail_url: `http://localhost:5000/payment/fail/${trxId}`,
         // fail_url: `https://assessly-server.vercel.app/payment/fail/${trxId}`,
-        fail_url: `https://assessly-server-production.up.railway.app/payment/fail/${trxId}`,
+        // fail_url: `https://assessly-server-production.up.railway.app/payment/fail/${trxId}`,
+        fail_url: `https://assessly-server.onrender.com/payment/fail/${trxId}`,
 
         // cancel_url: "http://localhost:5000/payment/cancel",
         // cancel_url: `https://assessly-server.vercel.app/payment/cancel/${trxId}`,
-        cancel_url: `https://assessly-server-production.up.railway.app/payment/cancel/${trxId}`,
+        // cancel_url: `https://assessly-server-production.up.railway.app/payment/cancel/${trxId}`,
+        cancel_url: `https://assessly-server.onrender.com/payment/cancel/${trxId}`,
 
         ipn_url: "http://localhost:3030/ipn",
         shipping_method: "Courier",
