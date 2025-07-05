@@ -4,6 +4,10 @@ const SSLCommerzPayment = require("sslcommerz-lts");
 const express = require("express");
 const app = express();
 const jwt = require("jsonwebtoken");
+const { PDFDocument, StandardFonts, rgb } = require("pdf-lib");
+const fs = require("fs");
+const path = require("path");
+const router = express.Router();
 
 const cors = require("cors");
 
@@ -285,21 +289,109 @@ async function run() {
 
     // get all exam :::: public
     app.get("/get/all-exams", async (req, res) => {
-      const { type } = req.query;
-      if (type === "single") {
-        const query = { examType: type };
-        const result = await examsCollection.find(query).toArray();
-        res.send(result);
+      // const { type } = req.query;
+      const {
+        type,
+        sortBy,
+        classs,
+        subject,
+        currentPage,
+        itemsPerPage,
+        count,
+        search,
+      } = {
+        ...req.query,
+      };
+      console.log(req.query);
+      // console.log(
+      //   type,
+      //   sortBy,
+      //   classs,
+      //   currentPage,
+      //   itemsPerPage,
+      //   count,
+      //   search
+      // );
+
+      // define query
+      const query = {
+        examType: type,
+      };
+
+      // Extract and parse classs
+      // if (classs) {
+      //   const classArray = classs.split(",").map(Number); // ['6','7'] → [6,7]
+      //   query["examClass"] = { $in: classArray };
+      // }
+
+      if (typeof classs === "string") {
+        query["examClass"] = { $in: classs.split(",") };
       }
+      if (typeof subject === "string") {
+        query["examTopic"] = { $in: subject.split(",") };
+      }
+
+      // Extract and parse subject
+      // if (subject) {
+      //   const subjectArray = subject.split(","); // ['Ict','Bangla']
+      //   query["examTopic"] = { $in: subjectArray };
+      // }
+
+      // applied sorting by class func
+      const sortQuery = {};
+      // console.log(sortQuery, "sortquery");
+      if (sortBy === "cs2l" || sortBy === "cl2s") {
+        sortQuery["examClass"] = sortBy === "cs2l" ? 1 : -1;
+      }
+
+      // applied sorting by price func
+      if (sortBy === "pl2h" || sortBy === "ph2l") {
+        sortQuery["fee"] = sortBy === "pl2h" ? 1 : -1;
+      }
+
+      // apply search func/filter to the query
+      if (typeof search === "string") {
+        query["examTitle"] = { $regex: search, $options: "i" };
+      }
+
+      // console.log(sortQuery, "sortquery");
+
+      // count total exams
+      if (count) {
+        const count = await examsCollection.countDocuments(query);
+        return res.send({ count });
+      }
+
+      const itemsPerPageInt = itemsPerPage ? parseInt(itemsPerPage) : 12;
+      const currentPageInt = currentPage ? parseInt(currentPage) : 0;
+
       if (type === "limit") {
         const query = { examType: "single" };
         const result = await examsCollection.find(query).limit(8).toArray();
-        res.send(result);
+        return res.send(result);
       }
       if (type === "all") {
         const result = await examsCollection.find().toArray();
-        res.send(result);
+        return res.send(result);
       }
+
+      console.log(query);
+
+      const result = await examsCollection
+        .find(query)
+        .sort(sortQuery)
+        .skip(currentPageInt * itemsPerPageInt)
+        .limit(itemsPerPageInt)
+        .toArray();
+
+      // console.log(result);
+      res.send(result);
+
+      // if (type === "single") {
+      //   const query = { examType: type };
+      //   const result = await examsCollection.find(query).toArray();
+      //   res.send(result);
+      // }
     });
 
     // get individual exam by exam id:::public
@@ -595,10 +687,10 @@ async function run() {
         total_amount: fee,
         currency: "BDT",
         tran_id: trxId,
-        // success_url: `http://localhost:5000/payment/success/${trxId}`,
+        success_url: `http://localhost:5000/payment/success/${trxId}`,
         // success_url: `https://assessly-server.vercel.app/payment/success/${trxId}`,
         // success_url: `https://assessly-server-production.up.railway.app/payment/success/${trxId}`,
-        success_url: `https://assessly-server.onrender.com/payment/success/${trxId}`,
+        // success_url: `https://assessly-server.onrender.com/payment/success/${trxId}`,
 
         // fail_url: `http://localhost:5000/payment/fail/${trxId}`,
         // fail_url: `https://assessly-server.vercel.app/payment/fail/${trxId}`,
@@ -1120,6 +1212,105 @@ async function run() {
       };
 
       res.send(finalStatsForRegularUser);
+    });
+
+    // get certificate list
+
+    app.get("/get/certificates/:email", async (req, res) => {
+      const { email } = req.params;
+
+      console.log(email);
+
+      const query = {
+        email: email,
+        status: "Passed",
+      };
+
+      const result = await examsResultCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    // certificate generate
+    app.post("/api/generate-certificate", async (req, res) => {
+      const { PDFDocument, StandardFonts, rgb } = require("pdf-lib");
+      const fontkit = require("@pdf-lib/fontkit");
+      const fs = require("fs");
+      const path = require("path");
+
+      const { name, course, date } = req.body;
+      console.log(name, course, date);
+
+      try {
+        const templatePath = path.join(
+          __dirname,
+          "assets/certificate_template-v2.pdf"
+        );
+        const existingPdfBytes = fs.readFileSync(templatePath);
+
+        const pdfDoc = await PDFDocument.load(existingPdfBytes);
+
+        // ✅ Register fontkit before embedding custom font
+        pdfDoc.registerFontkit(fontkit);
+
+        const fontPathDancing_script = path.join(
+          __dirname,
+          "assets/fonts/Dancing Script.ttf"
+        );
+
+        const fontBytesDancing_script = fs.readFileSync(fontPathDancing_script);
+        const customFontDancing_script = await pdfDoc.embedFont(
+          fontBytesDancing_script
+        );
+
+        const fontPathNunito = path.join(
+          __dirname,
+          "assets/fonts/Nunito-Italic.ttf"
+        );
+        const fontBytesfontPathNunito = fs.readFileSync(fontPathNunito);
+        const customFontfontPathNunito = await pdfDoc.embedFont(
+          fontBytesfontPathNunito
+        );
+
+        const pages = pdfDoc.getPages();
+        const firstPage = pages[0];
+
+        firstPage.drawText(name, {
+          x: 225,
+          y: 330,
+          size: 48,
+
+          font: customFontDancing_script,
+          color: rgb(28 / 255, 28 / 255, 43 / 255),
+        });
+
+        firstPage.drawText(course, {
+          x: 200,
+          y: 243,
+          size: 15,
+          font: customFontfontPathNunito,
+          color: rgb(0.2, 0.255, 0.4),
+        });
+
+        firstPage.drawText(date, {
+          x: 200,
+          y: 220,
+          size: 14,
+          font: customFontfontPathNunito,
+          color: rgb(0.2, 0.255, 0.4),
+        });
+
+        const pdfBytes = await pdfDoc.save();
+
+        res.set({
+          "Content-Type": "application/pdf",
+          "Content-Disposition": `attachment; filename=certificate-${name}.pdf`,
+        });
+
+        res.send(Buffer.from(pdfBytes));
+      } catch (err) {
+        console.error(err);
+        res.status(500).send("Error generating certificate");
+      }
     });
   } finally {
     // Ensures that the client will close when you finish/error
