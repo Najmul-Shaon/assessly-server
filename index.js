@@ -77,7 +77,6 @@ async function run() {
     // middlewares
     // verifyToken middleware
     const verifyToken = (req, res, next) => {
-      console.log(req.headers.authorization);
       // next();
 
       if (!req.headers.authorization) {
@@ -142,15 +141,54 @@ async function run() {
 
     // get all blogs::: public
     app.get("/get/blogs", async (req, res) => {
-      const { limit } = req.query;
-      if (limit === "all") {
-        const result = await blogsCollection.find().toArray();
-        res.send(result);
+      const {
+        limit,
+        classs,
+        subject,
+        currentPage,
+        itemsPerPage,
+        count,
+        search,
+      } = {
+        ...req.query,
+      };
+
+      // define query
+      const query = {};
+
+      if (typeof classs === "string") {
+        query["class"] = { $in: classs.split(",") };
       }
+      if (typeof subject === "string") {
+        query["topic"] = { $in: subject.split(",") };
+      }
+
+      // apply search func/filter to the query
+      if (typeof search === "string") {
+        query["title"] = { $regex: search, $options: "i" };
+      }
+
+      // count total course
+      if (count) {
+        const count = await blogsCollection.countDocuments(query);
+        return res.send({ count });
+      }
+
+      const itemsPerPageInt = itemsPerPage ? parseInt(itemsPerPage) : 12;
+      const currentPageInt = currentPage ? parseInt(currentPage) : 0;
+
       if (limit === "8") {
         const result = await blogsCollection.find().limit(8).toArray();
-        res.send(result);
+        return res.send(result);
       }
+
+      const result = await blogsCollection
+        .find(query)
+        // .sort(sortQuery)
+        .skip(currentPageInt * itemsPerPageInt)
+        .limit(itemsPerPageInt)
+        .toArray();
+      res.send(result);
     });
 
     // get individual blog by blog id ::: public
@@ -302,27 +340,11 @@ async function run() {
       } = {
         ...req.query,
       };
-      console.log(req.query);
-      // console.log(
-      //   type,
-      //   sortBy,
-      //   classs,
-      //   currentPage,
-      //   itemsPerPage,
-      //   count,
-      //   search
-      // );
 
       // define query
       const query = {
         examType: type,
       };
-
-      // Extract and parse classs
-      // if (classs) {
-      //   const classArray = classs.split(",").map(Number); // ['6','7'] → [6,7]
-      //   query["examClass"] = { $in: classArray };
-      // }
 
       if (typeof classs === "string") {
         query["examClass"] = { $in: classs.split(",") };
@@ -330,12 +352,6 @@ async function run() {
       if (typeof subject === "string") {
         query["examTopic"] = { $in: subject.split(",") };
       }
-
-      // Extract and parse subject
-      // if (subject) {
-      //   const subjectArray = subject.split(","); // ['Ict','Bangla']
-      //   query["examTopic"] = { $in: subjectArray };
-      // }
 
       // applied sorting by class func
       const sortQuery = {};
@@ -353,8 +369,6 @@ async function run() {
       if (typeof search === "string") {
         query["examTitle"] = { $regex: search, $options: "i" };
       }
-
-      // console.log(sortQuery, "sortquery");
 
       // count total exams
       if (count) {
@@ -375,23 +389,13 @@ async function run() {
         return res.send(result);
       }
 
-      console.log(query);
-
       const result = await examsCollection
         .find(query)
         .sort(sortQuery)
         .skip(currentPageInt * itemsPerPageInt)
         .limit(itemsPerPageInt)
         .toArray();
-
-      // console.log(result);
       res.send(result);
-
-      // if (type === "single") {
-      //   const query = { examType: type };
-      //   const result = await examsCollection.find(query).toArray();
-      //   res.send(result);
-      // }
     });
 
     // get individual exam by exam id:::public
@@ -528,7 +532,54 @@ async function run() {
 
     // get all courses:::public
     app.get("/get-all-courses", async (req, res) => {
-      const { type } = req.query;
+      const {
+        type,
+        sortBy,
+        classs,
+        subject,
+        currentPage,
+        itemsPerPage,
+        count,
+        search,
+      } = {
+        ...req.query,
+      };
+
+      // define query
+      const query = {};
+
+      if (typeof classs === "string") {
+        query["class"] = { $in: classs.split(",") };
+      }
+      if (typeof subject === "string") {
+        query["subjects"] = { $in: subject.split(",") };
+      }
+
+      // applied sorting by class func
+      const sortQuery = {};
+      // console.log(sortQuery, "sortquery");
+      if (sortBy === "cs2l" || sortBy === "cl2s") {
+        sortQuery["class"] = sortBy === "cs2l" ? 1 : -1;
+      }
+
+      // applied sorting by price func
+      if (sortBy === "pl2h" || sortBy === "ph2l") {
+        sortQuery["fee"] = sortBy === "pl2h" ? 1 : -1;
+      }
+
+      // apply search func/filter to the query
+      if (typeof search === "string") {
+        query["examTitle"] = { $regex: search, $options: "i" };
+      }
+
+      // count total course
+      if (count) {
+        const count = await courseCollection.countDocuments(query);
+        return res.send({ count });
+      }
+
+      const itemsPerPageInt = itemsPerPage ? parseInt(itemsPerPage) : 12;
+      const currentPageInt = currentPage ? parseInt(currentPage) : 0;
 
       if (type === "all") {
         const result = await courseCollection.find().toArray();
@@ -536,8 +587,16 @@ async function run() {
       }
       if (type === "limit") {
         const result = await courseCollection.find().limit(8).toArray();
-        res.send(result);
+        return res.send(result);
       }
+
+      const result = await courseCollection
+        .find(query)
+        .sort(sortQuery)
+        .skip(currentPageInt * itemsPerPageInt)
+        .limit(itemsPerPageInt)
+        .toArray();
+      res.send(result);
     });
 
     // get individual course by course id::: public
@@ -1219,8 +1278,6 @@ async function run() {
     app.get("/get/certificates/:email", async (req, res) => {
       const { email } = req.params;
 
-      console.log(email);
-
       const query = {
         email: email,
         status: "Passed",
@@ -1238,7 +1295,6 @@ async function run() {
       const path = require("path");
 
       const { name, course, date } = req.body;
-      console.log(name, course, date);
 
       try {
         const templatePath = path.join(
@@ -1308,7 +1364,6 @@ async function run() {
 
         res.send(Buffer.from(pdfBytes));
       } catch (err) {
-        console.error(err);
         res.status(500).send("Error generating certificate");
       }
     });
