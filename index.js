@@ -746,10 +746,10 @@ async function run() {
         total_amount: fee,
         currency: "BDT",
         tran_id: trxId,
-        success_url: `http://localhost:5000/payment/success/${trxId}`,
+        // success_url: `http://localhost:5000/payment/success/${trxId}`,
         // success_url: `https://assessly-server.vercel.app/payment/success/${trxId}`,
         // success_url: `https://assessly-server-production.up.railway.app/payment/success/${trxId}`,
-        // success_url: `https://assessly-server.onrender.com/payment/success/${trxId}`,
+        success_url: `https://assessly-server.onrender.com/payment/success/${trxId}`,
 
         // fail_url: `http://localhost:5000/payment/fail/${trxId}`,
         // fail_url: `https://assessly-server.vercel.app/payment/fail/${trxId}`,
@@ -1367,6 +1367,8 @@ async function run() {
         res.status(500).send("Error generating certificate");
       }
     });
+
+    // get exam list
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
