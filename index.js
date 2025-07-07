@@ -1066,7 +1066,7 @@ async function run() {
       const { submitData } = req.body;
       const { id, email } = req.query;
 
-      const query = { examId: id, email: email };
+      const query = { examId: Number(id), email: email };
 
       const updateData = {
         $set: {
@@ -1093,7 +1093,7 @@ async function run() {
 
         const { questions, studentAnswers, submitId } =
           await examSubmissionCollection.findOne({
-            examId: id,
+            examId: Number(id),
             email: email,
           });
 
@@ -1172,7 +1172,7 @@ async function run() {
     app.get("/check/is-submit", async (req, res) => {
       const { id, email } = req.query;
       const query = {
-        examId: id,
+        examId: Number(id),
         email: email,
       };
 
@@ -1182,7 +1182,7 @@ async function run() {
       if (result) {
         isSubmit = true;
       }
-      // console.log(id, email, result);
+
       res.send({ isSubmit });
     });
 
@@ -1286,13 +1286,35 @@ async function run() {
     app.get("/get/certificates/:email", async (req, res) => {
       const { email } = req.params;
 
-      const query = {
-        email: email,
-        status: "Passed",
-      };
+      try {
+        // Get all exam results for the user
+        const resultList = await examsResultCollection
+          .find({ email, status: "Passed" })
+          .toArray();
 
-      const result = await examsResultCollection.find(query).toArray();
-      res.send(result);
+        // Get all exams to map by examId
+        const exams = await examsCollection.find().toArray();
+        const examMap = {};
+        exams.forEach((exam) => {
+          examMap[exam.examId] = exam.examTitle;
+        });
+
+        // Merge each result with its corresponding exam title
+        const mergedResults = resultList.map((result) => {
+          const examIdInt = parseInt(result.examId);
+          return {
+            ...result,
+            examTitle: examMap[examIdInt] || "Unknown Title",
+          };
+        });
+
+        res.send(mergedResults);
+      } catch (error) {
+        console.error("Error fetching certificates:", error);
+        res.status(500).send({
+          message: "Internal error",
+        });
+      }
     });
 
     // certificate generate
@@ -1356,8 +1378,8 @@ async function run() {
         });
 
         firstPage.drawText(date, {
-          x: 200,
-          y: 220,
+          x: 600,
+          y: 243,
           size: 14,
           font: customFontfontPathNunito,
           color: rgb(0.2, 0.255, 0.4),
@@ -1464,9 +1486,6 @@ async function run() {
         console.error(err);
         res.status(500).send("failed to generate report");
       }
-
-      // const result = await examsResultCollection.find(query).toArray();
-      // res.send(result);
     });
 
     // dashboard status
