@@ -1468,6 +1468,45 @@ async function run() {
       // const result = await examsResultCollection.find(query).toArray();
       // res.send(result);
     });
+
+    // dashboard status
+    app.get("/get/dashboard-status", async (req, res) => {
+      const totalExam = await examsCollection.countDocuments();
+      const activeUser = await usersCollection.countDocuments();
+      const totalBlog = await blogsCollection.countDocuments();
+      const result = await examsCollection
+        .aggregate([
+          {
+            $group: {
+              _id: null,
+              totalRevenue: {
+                $sum: {
+                  $convert: {
+                    input: "$fee",
+                    to: "int",
+                    onError: 0,
+                    onNull: 0,
+                  },
+                },
+              },
+            },
+          },
+        ])
+        .toArray();
+      const totalRevenue = result[0].totalRevenue || 0;
+
+      // get last five user
+      const fiveUser = await usersCollection.find().limit(5).toArray();
+      const latestPayment = await paymentsCollection.find().limit(5).toArray();
+      res.send({
+        totalExam,
+        activeUser,
+        totalBlog,
+        totalRevenue,
+        fiveUser,
+        latestPayment,
+      });
+    });
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
