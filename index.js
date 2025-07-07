@@ -8,6 +8,7 @@ const { PDFDocument, StandardFonts, rgb } = require("pdf-lib");
 const fs = require("fs");
 const path = require("path");
 const router = express.Router();
+const ExcelJS = require("exceljs");
 
 const cors = require("cors");
 
@@ -880,6 +881,13 @@ async function run() {
 
     // payment area end
 
+    // get all payment for admin
+
+    app.get("/get/all-payment", async (req, res) => {
+      const result = await paymentsCollection.find().toArray();
+      res.send(result);
+    });
+
     // get specific payment details for specific user:::user
     // app.get("/payments/history/:email", verifyToken, async (req, res) => {
     app.get("/payments/history/:email", async (req, res) => {
@@ -1369,6 +1377,97 @@ async function run() {
     });
 
     // get exam list
+    app.get("/get/result-exam-list", async (req, res) => {
+      try {
+        const resultList = await examsResultCollection.find().toArray();
+
+        const exams = await examsCollection.find().toArray();
+
+        const examMap = {};
+        exams.forEach((exam) => {
+          examMap[exam.examId] = exam;
+        });
+
+        const uniqueExamIds = new Set();
+
+        resultList.forEach((result) => {
+          const examIdInt = parseInt(result.examId);
+          if (examMap[examIdInt]?.examType === "group") {
+            uniqueExamIds.add(examIdInt);
+          }
+        });
+
+        const finalList = Array.from(uniqueExamIds).map((examId) => ({
+          examId: examId.toString(),
+          examTitle: examMap[examId].examTitle,
+        }));
+        res.send(finalList);
+      } catch (error) {
+        console.error("error to getch", error);
+        res.status(500).send({
+          message: "Internal error",
+        });
+      }
+    });
+
+    // get download exam report
+    app.get("/download/exam-report/:examId", async (req, res) => {
+      const { examId } = req.params;
+
+      const query = { examId: examId };
+
+      try {
+        const examResults = await examsResultCollection.find(query).toArray();
+
+        const workbook = new ExcelJS.Workbook();
+        const workSheet = workbook.addWorksheet("Exam Report");
+
+        workSheet.columns = [
+          { header: "Std_email", key: "email", width: 25 },
+          { header: "Total Marks", key: "total_marks", width: 15 },
+          { header: "Total Answered", key: "total_answered", width: 15 },
+          { header: "Total Right", key: "total_right", width: 15 },
+          { header: "Total Skip", key: "total_skip", width: 15 },
+          { header: "Total Wrong", key: "total_wrong", width: 15 },
+          { header: "Total Negative", key: "total_negative", width: 15 },
+          { header: "Obtain Marks", key: "obtain_marks", width: 15 },
+          { header: "Status", key: "status", width: 15 },
+        ];
+
+        examResults.forEach((result) => {
+          workSheet.addRow({
+            email: result.email ?? "N/A",
+            total_marks: result.totalMarks ?? "N/A",
+            total_answered: result.totalAnswered ?? "N/A",
+            total_right: result.totalRight ?? "N/A",
+            total_skip: result.totalSkip ?? "N/A",
+            total_wrong: result.totalWrong ?? "N/A",
+            total_negative: result.totalNegativeMark ?? "N/A",
+            obtain_marks: result.obtainMarks ?? "N/A",
+            status: result.status ?? "N/A",
+          });
+        });
+
+        res.setHeader(
+          "Content-Type",
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        );
+
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename=exam_${examId}_report.xlsx`
+        );
+
+        await workbook.xlsx.write(res);
+        res.end();
+      } catch (err) {
+        console.error(err);
+        res.status(500).send("failed to generate report");
+      }
+
+      // const result = await examsResultCollection.find(query).toArray();
+      // res.send(result);
+    });
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
